@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from voltaware_collector.client import VoltawareClient
+import rospy
+
+if __name__ == '__main__':
+    rospy.init_node('voltaware_collector')
+    client = VoltawareClient()
+    try:
+        client.run()
+    except KeyboardInterrupt:
+        client.close()
+

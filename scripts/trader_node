@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+# ROS
+import rospy
+
+# Robonomics communication
+from robonomics_msgs.msg import Demand
+from robonomics_liability.msg import Liability
+from robonomics_liability.objective import Objective
+from ethereum_common.msg import Address, UInt256
+from ethereum_common.srv import Accounts, BlockNumber, Balance
+from ipfs_common.msg import Multihash
+
+from voltaware_collector import storage
+
+class TraderNode:
+    """
+    """
+
+    def __init__(self):
+        rospy.init_node('voltaware_trader')
+        rospy.loginfo('Launching trader node...')
+
+        self.model = Multihash()
+        self.model.multihash = rospy.get_param('~model')
+
+        rospy.wait_for_service('/eth/current_block')
+        rospy.wait_for_service('/eth/accounts')
+        self.account = rospy.ServiceProxy('/eth/accounts', Accounts)()[0].address
+
+        rospy.wait_for_service('/erc20/xrt_balance')
+        self.get_balance = rospy.ServiceProxy('/erc20/xrt_balance', Balance)
+        rospy.loginfo('Account address: {}'.format(self.account)) # AIRA ethereum addresses
+
+        self.signing_demand = rospy.Publisher('/liability/infochan/eth/signing/demand', Demand, queue_size=128)
+    
+        db_uri = rospy.get_param('db_uri', 'sqlite:///storage.db') 
+        self.storage = VoltawareStorage(db_uri)
+
+        rospy.Subscriber('/liability/incoming', Liability, self.on_incoming_liability)
+        rospy.Subscriber('/liability/infochan/incoming/offer', Offer, self.on_incoming_offer)
+
+        rospy.loginfo('Trader node launched.')
+
+    def on_incoming_liability(self, incoming: Liability):
+        rospy.loginfo('Incoming liability %s...', str(incoming))
+        if incoming.promisee.address == self.account and incoming.model == self.model:
+            rospy.loginfo('It is my, handle it...')
+            objective = Objective(multihash=incoming.objective)
+            packet_size = objective.messages['/packet_size']
+            stamp = objective.messages['/stamp']
+            rospy.loginfo('Offset packet size %s', packet_size)
+            storage.offset(int(packet_size.uint256), int(stamp.uint256)) 
+
+    def on_incoming_offer(self, incoming: Offer):
+        rospy.loginfo('Incoming offer %s...', str(incoming))
+        if incoming.model == self.model:
+            balance = self.get_balance()
+            consumption = UInt256(storage.total_consumption)
+            rospy.loginfo('My Balance %s and consumption %s', balance, consumption)
+
+            objective = Objective(multihash=incoming.objective)
+            packet_size = objective.messages['/packet_size']
+            rospy.loginfo('Proposed offset packet size %s cost %s', packet_size, incoming.cost)
+
+            if incoming.cost <= balance and packet_size <= consumption:
+                rospy.loginfo('Accepted, make and send demand message')
+                self.make_demand(incoming.objective, incoming.cost)
+            else:
+                rospy.loginfo('Rejected, I have low balance or consumption')
+
+    def make_deadline(self):
+        lifetime = int(rospy.get_param('~order_lifetime'))
+        deadline = rospy.ServiceProxy('/eth/current_block', BlockNumber)().number + lifetime
+        return str(deadline)
+
+    def make_demand(self, objective, cost):
+        rospy.loginfo('Making demand...')
+
+        demand = Demand()
+        demand.model = self.model
+        demand.objective = objective
+        demand.token = Address()
+        demand.token.address = rospy.get_param('~token')
+        demand.cost = cost
+        demand.validatorFee = UInt256()
+        demand.validatorFee.uint256 = '0'
+        demand.validator = Address()
+        demand.validator.address = '0x0000000000000000000000000000000000000000'
+        demand.deadline = UInt256()
+        demand.deadline.uint256 = self.make_deadline()
+
+        self.signing_demand.publish(demand)
+        rospy.loginfo(demand)
+
+    def spin(self):
+        rospy.spin()
+
+if __name__ == '__main__':
+    TraderNode().spin()

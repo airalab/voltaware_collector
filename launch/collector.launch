@@ -1,0 +1,12 @@
+<launch>
+  <node name="collector" pkg="voltaware_collector" type="collector_node" output="screen">
+    <!-- Voltaware message queue login -->
+    <param name="login" value="" />
+    <!-- Voltaware message queue password -->
+    <param name="password" value="" />
+    <!-- Voltaware message queue host, default Voltaware partner broker -->
+    <param name="host" value="partner-broker.voltaware.com" />
+    <!-- Voltaware message queue name, default airalab queue -->
+    <param name="queue-name" value="aira-event" />
+  </node>
+</launch>
