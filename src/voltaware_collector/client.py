@@ -32,7 +32,7 @@ class VoltawareClient:
             json = loads(body)
             sensor_id = json['sensor']['id']
             consumption = json['event']['energyConsumptionWh']
-            stamp = datetime.strptime(json['event']['timestamp'], '%Y-%m-%dT%H:%M:%SZ')
+            stamp = datetime.strptime(json['event']['timestamp'][:19], '%Y-%m-%dT%H:%M:%S')
             rospy.loginfo('Incoming measurement from {} at {}, consumption {} Wh'.format(sensor_id, stamp, consumption))
             storage.put_measurement(sensor_id, consumption, stamp)
             ch.basic_ack(delivery_tag=method.delivery_tag)
