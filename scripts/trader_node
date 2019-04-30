@@ -7,10 +7,10 @@ import rospy
 # Robonomics communication
 from robonomics_msgs.msg import Demand
 from robonomics_liability.msg import Liability
-from robonomics_liability.objective import Objective
 from ethereum_common.msg import Address, UInt256
 from ethereum_common.srv import Accounts, BlockNumber, Balance
 from ipfs_common.msg import Multihash
+from ipfs_common.bag import Bag 
 
 from voltaware_collector import storage
 
@@ -47,9 +47,9 @@ class TraderNode:
         rospy.loginfo('Incoming liability %s...', str(incoming))
         if incoming.promisee.address == self.account and incoming.model == self.model:
             rospy.loginfo('It is my, handle it...')
-            objective = Objective(multihash=incoming.objective)
-            packet_size = objective.messages['/packet_size']
-            stamp = objective.messages['/stamp']
+            result = Bag(multihash=incoming.result)
+            packet_size = result.messages['/packet_size']
+            stamp = result.messages['/stamp']
             rospy.loginfo('Offset packet size %s', packet_size)
             storage.offset(int(packet_size.uint256), int(stamp.uint256)) 
 
@@ -60,7 +60,7 @@ class TraderNode:
             consumption = UInt256(storage.total_consumption)
             rospy.loginfo('My Balance %s and consumption %s', balance, consumption)
 
-            objective = Objective(multihash=incoming.objective)
+            objective = Bag(multihash=incoming.objective)
             packet_size = objective.messages['/packet_size']
             rospy.loginfo('Proposed offset packet size %s cost %s', packet_size, incoming.cost)
 
