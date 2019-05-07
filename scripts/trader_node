@@ -27,7 +27,7 @@ class TraderNode:
 
         rospy.wait_for_service('/eth/current_block')
         rospy.wait_for_service('/eth/accounts')
-        self.account = rospy.ServiceProxy('/eth/accounts', Accounts)()[0].address
+        self.account = rospy.ServiceProxy('/eth/accounts', Accounts)().accounts[0].address
 
         rospy.wait_for_service('/erc20/xrt_balance')
         self.get_balance = rospy.ServiceProxy('/erc20/xrt_balance', Balance)
