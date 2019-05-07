@@ -5,7 +5,7 @@
 import rospy
 
 # Robonomics communication
-from robonomics_msgs.msg import Demand
+from robonomics_msgs.msg import Offer, Demand
 from robonomics_liability.msg import Liability
 from ethereum_common.msg import Address, UInt256
 from ethereum_common.srv import Accounts, BlockNumber, Balance
